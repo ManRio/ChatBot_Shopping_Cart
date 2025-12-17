@@ -64,6 +64,8 @@ shopping_bot/
 ├── requirements.txt
 └── README.md
 
+```
+
 ---
 
 ## Funcionalidades implementadas
