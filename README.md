@@ -8,6 +8,7 @@ El usuario interactúa mediante lenguaje natural para consultar productos, gesti
 El flujo conversacional se ha modelado mediante **LangGraph**, utilizando un grafo de estados explícito, y la interfaz se ha implementado como una **aplicación web sencilla con Flask**.
 
 El objetivo principal del proyecto es demostrar la capacidad de:
+
 - Abstraer un problema real.
 - Diseñar una solución modular y mantenible en Python.
 - Modelar flujos conversacionales con estados.
@@ -28,30 +29,38 @@ El objetivo principal del proyecto es demostrar la capacidad de:
 
 ## Estructura del proyecto
 
+```text
 shopping_bot/
 ├── app/
 │   ├── flask_app.py
 │   └── __init__.py
+│
 ├── conversation/
 │   ├── graph.py
 │   ├── nlu.py
 │   ├── state.py
 │   └── __init__.py
+│
 ├── domain/
 │   ├── models.py
 │   ├── catalog.py
 │   ├── coupons.py
 │   ├── pricing.py
 │   └── __init__.py
+│
 ├── data/
 │   ├── products.json
 │   └── coupons.json
+│
 ├── templates/
 │   ├── base.html
 │   └── chat.html
+│
 ├── static/
 │   └── styles.css
+│
 ├── tests/
+│
 ├── requirements.txt
 └── README.md
 
@@ -110,3 +119,4 @@ La aplicación estará disponible en http://127.0.0.1:5000
 ## Notas finales
 
 Este proyecto no pretende ser un sistema de producción, sino una demostración de diseño, estructuración y razonamiento técnico.
+```
