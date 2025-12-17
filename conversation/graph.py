@@ -1,0 +1,467 @@
+from langgraph.graph import StateGraph, END
+from .state import ConversationState
+from .nlu import parse_user_message
+from domain.catalog import find_product_by_id, find_product_by_name
+from domain.coupons import find_coupon_by_code
+from domain.pricing import calculate_totals
+
+import re
+
+
+def router_node(state: ConversationState) -> ConversationState:
+    # Nodo de entrada, no modifica el estado.
+    return state
+
+
+def handle_catalog(state: ConversationState) -> ConversationState:
+    """
+    Muestra el catálogo en forma de tabla HTML.
+    """
+    rows = []
+    for p in state["catalog"]:
+        rows.append(
+            "<tr>"
+            f"<td>{p.id}</td>"
+            f"<td>{p.name}</td>"
+            f"<td>{p.price:.2f} €</td>"
+            "</tr>"
+        )
+
+    html = (
+        "<p>Estos son algunos de nuestros productos, ¿deseas añadir alguno?</p>"
+        "<table class='catalog-table'>"
+        "<thead><tr><th>ID producto</th><th>Nombre</th><th>Precio</th></tr></thead>"
+        "<tbody>"
+        + "".join(rows)
+        + "</tbody></table>"
+    )
+
+    state["bot_message"] = html
+    state["mode"] = "catalog"
+    return state
+
+
+def _resolve_product_from_intent(state: ConversationState, intent) -> tuple[object | None, str]:
+    """
+    Utilidad interna para no repetir lógica: dados el estado y un ParsedIntent,
+    intenta resolver el producto (por id o por nombre aproximado).
+    Devuelve (product, error_message).
+    """
+    catalog = state["catalog"]
+    product = None
+
+    if intent.product_id:
+        product = find_product_by_id(catalog, intent.product_id)
+
+    if product is None and intent.product_name:
+        product = find_product_by_name(catalog, intent.product_name)
+
+    if product is None:
+        return None, (
+            "No encuentro ese producto. Puedes usar el id (por ejemplo 101) "
+            "o pedirme que te muestre el catálogo."
+        )
+
+    return product, ""
+
+
+def handle_add_to_cart(state: ConversationState) -> ConversationState:
+    intent = parse_user_message(state["last_user_message"])
+    product, error = _resolve_product_from_intent(state, intent)
+
+    if product is None:
+        state["bot_message"] = f"<p>{error}</p>"
+        return state
+
+    quantity = intent.quantity or 1
+    if quantity <= 0:
+        state["bot_message"] = (
+            "<p>No puedo añadir cantidades negativas o iguales a cero; "
+            "la cantidad debe ser al menos 1.</p>"
+        )
+        return state
+
+    try:
+        state["cart"].add_item(product, quantity)
+    except ValueError as e:
+        state["bot_message"] = f"<p>{e}</p>"
+        return state
+
+    state["mode"] = "cart_edit"
+    state["bot_message"] = (
+        f"<p>He añadido <strong>{quantity}</strong> unidad(es) de "
+        f"<strong>{product.name}</strong> a tu carrito.</p>"
+    )
+    return state
+
+
+def handle_remove_from_cart(state: ConversationState) -> ConversationState:
+    intent = parse_user_message(state["last_user_message"])
+    product, error = _resolve_product_from_intent(state, intent)
+
+    if product is None:
+        state["bot_message"] = (
+            "<p>No entiendo qué producto quieres eliminar del carrito. "
+            "Dímelo por su nombre o su id.</p>"
+        )
+        return state
+
+    if product.id not in state["cart"].items:
+        state["bot_message"] = (
+            f"<p><strong>{product.name}</strong> no está en tu carrito. "
+            "Puedes pedirme que te muestre el carrito para revisarlo.</p>"
+        )
+        return state
+
+    state["cart"].remove_item(product.id)
+    state["mode"] = "cart_edit"
+    state["bot_message"] = (
+        f"<p>He eliminado <strong>{product.name}</strong> de tu carrito.</p>"
+    )
+    return state
+
+
+def handle_update_quantity(state: ConversationState) -> ConversationState:
+    """
+    Actualiza la cantidad de un producto en el carrito.
+    Soporta frases tipo:
+    - 'cambia la camiseta azul a 3'
+    - 'pon 3 en la camiseta azul'
+    - 'pon 3 en lugar de 1'
+    """
+    intent = parse_user_message(state["last_user_message"])
+
+    if intent.quantity is None:
+        state["bot_message"] = (
+            "<p>No he entendido la cantidad nueva. Dime, por ejemplo: "
+            "<em>'pon 3 camisetas azules'</em> o <em>'cambia la camiseta azul a 2'</em>.</p>"
+        )
+        return state
+
+    product, error = _resolve_product_from_intent(state, intent)
+    if product is None:
+        state["bot_message"] = (
+            f"<p>{error or 'No he podido identificar el producto cuya cantidad quieres cambiar.'}</p>"
+        )
+        return state
+
+    if product.id not in state["cart"].items:
+        state["bot_message"] = (
+            f"<p><strong>{product.name}</strong> no está en tu carrito. "
+            "Primero añádelo y luego podré cambiar la cantidad.</p>"
+        )
+        return state
+
+    # Si la cantidad nueva es <= 0, interpretamos que se quiere eliminar
+    if intent.quantity <= 0:
+        state["cart"].remove_item(product.id)
+        state["mode"] = "cart_edit"
+        state["bot_message"] = (
+            f"<p>He eliminado <strong>{product.name}</strong> del carrito "
+            f"porque la cantidad nueva es {intent.quantity}.</p>"
+        )
+        return state
+
+    try:
+        state["cart"].set_quantity(product.id, intent.quantity)
+    except (KeyError, ValueError) as e:
+        state["bot_message"] = f"<p>{e}</p>"
+        return state
+
+    state["mode"] = "cart_edit"
+    state["bot_message"] = (
+        f"<p>He actualizado la cantidad de <strong>{product.name}</strong> "
+        f"a <strong>{intent.quantity}</strong> unidad(es).</p>"
+    )
+    return state
+
+
+def handle_show_cart(state: ConversationState) -> ConversationState:
+    """
+    Muestra el carrito como tabla HTML con totales y descuentos.
+    """
+    cart = state["cart"]
+    if cart.is_empty():
+        state["bot_message"] = (
+            "<p>Tu carrito está vacío. "
+            "Si quieres, puedo <strong>mostrarte el catálogo</strong> para que añadas productos.</p>"
+        )
+        return state
+
+    summary = calculate_totals(cart)
+    state["discount_summary"] = summary
+
+    rows = []
+    for item in cart.items.values():
+        line_total = item.product.price * item.quantity
+        rows.append(
+            "<tr>"
+            f"<td>{item.product.name}</td>"
+            f"<td>{item.quantity}</td>"
+            f"<td>{item.product.price:.2f} €</td>"
+            f"<td>{line_total:.2f} €</td>"
+            "</tr>"
+        )
+
+    html = (
+        "<p>Hasta ahora esto es lo que llevas añadido al carrito:</p>"
+        "<table class='cart-table'>"
+        "<thead>"
+        "<tr><th>Producto</th><th>Cantidad</th><th>Precio unidad</th><th>Subtotal</th></tr>"
+        "</thead>"
+        "<tbody>"
+        + "".join(rows)
+        + "</tbody></table>"
+        "<div class='cart-totals'>"
+        f"<p><strong>Descuento por cantidades:</strong> -{summary.line_discounts:.2f} €</p>"
+        f"<p><strong>Descuento por total:</strong> -{summary.cart_discount:.2f} €</p>"
+    )
+
+    if cart.applied_coupon:
+        html += (
+            f"<p><strong>Cupón aplicado ({cart.applied_coupon.code}):</strong> "
+            f"-{summary.coupon_discount:.2f} €</p>"
+        )
+
+    html += f"<p><strong>Total final:</strong> {summary.final_total:.2f} €</p></div>"
+
+    state["bot_message"] = html
+    state["mode"] = "cart_edit"
+    return state
+
+
+def handle_checkout(state: ConversationState) -> ConversationState:
+    cart = state["cart"]
+    if cart.is_empty():
+        state["bot_message"] = (
+            "<p>Tu carrito está vacío. Añade algún producto antes de finalizar.</p>"
+        )
+        state["mode"] = "catalog"
+        return state
+
+    summary = calculate_totals(cart)
+    state["discount_summary"] = summary
+
+    state["bot_message"] = (
+        f"<p>Vamos a finalizar tu compra. El total es "
+        f"<strong>{summary.final_total:.2f} €</strong>.</p>"
+        "<p>Puedes decirme tu <strong>nombre y ciudad de envío en una sola frase</strong>, "
+        "por ejemplo: <em>'Soy Ana de Madrid'</em>, "
+        "o bien decírmelo <strong>por partes</strong> empezando por tu nombre.</p>"
+    )
+    state["mode"] = "shipping"
+    state["shipping_name"] = None
+    state["shipping_city"] = None
+    return state
+
+
+def handle_shipping(state: ConversationState) -> ConversationState:
+    text = state["last_user_message"].strip()
+
+    # Caso 1: todavía no tenemos ni nombre ni ciudad.
+    # Intentamos primero parsear "Soy X de Y" o "Me llamo X de Y".
+    if state["shipping_name"] is None and state["shipping_city"] is None:
+        m = re.match(r"(?i)\s*(soy|me llamo)\s+(.+?)\s+de\s+(.+)", text)
+        if m:
+            name = m.group(2).strip()
+            city = m.group(3).strip()
+
+            state["shipping_name"] = name
+            state["shipping_city"] = city
+            state["mode"] = "confirmation"
+            state["bot_message"] = (
+                f"<p>Gracias, <strong>{name}</strong> de "
+                f"<strong>{city}</strong>.</p>"
+                "<p>He registrado tu pedido. Si quieres, puedes seguir comprando "
+                "o escribir <strong>'salir'</strong> para terminar.</p>"
+            )
+            return state
+
+        # Si no encaja con el patrón “Soy X de Y”, interpretamos que solo nos ha dado el nombre.
+        state["shipping_name"] = text
+        state["bot_message"] = "<p>Perfecto. ¿En qué ciudad vives?</p>"
+        return state
+
+    # Caso 2: ya tenemos nombre pero no ciudad → este mensaje lo tomamos como ciudad.
+    if state["shipping_name"] is not None and state["shipping_city"] is None:
+        state["shipping_city"] = text
+        state["mode"] = "confirmation"
+        state["bot_message"] = (
+            f"<p>Gracias, <strong>{state['shipping_name']}</strong> de "
+            f"<strong>{state['shipping_city']}</strong>.</p>"
+            "<p>He registrado tu pedido. Si quieres, puedes seguir comprando "
+            "o escribir <strong>'salir'</strong> para terminar.</p>"
+        )
+        return state
+
+    # Caso 3: ya tenemos nombre y ciudad; de momento no hacemos nada especial.
+    return state
+
+
+def handle_apply_coupon(state: ConversationState) -> ConversationState:
+    intent = parse_user_message(state["last_user_message"])
+    if not intent.coupon_code:
+        state["bot_message"] = "<p>Dime el código de cupón que quieres aplicar.</p>"
+        return state
+
+    coupon = find_coupon_by_code(state["coupons"], intent.coupon_code)
+    if coupon is None:
+        state["bot_message"] = "<p>Ese cupón no es válido.</p>"
+        return state
+
+    state["cart"].applied_coupon = coupon
+    state["applied_coupon_code"] = coupon.code
+    state["bot_message"] = (
+        f"<p>He aplicado el cupón <strong>{coupon.code}</strong> a tu carrito.</p>"
+    )
+    return state
+
+
+def handle_smalltalk(state: ConversationState) -> ConversationState:
+    state["bot_message"] = (
+        "<p>Soy un asistente de tienda online. No sé el tiempo que hace, "
+        "pero sí puedo ayudarte con tu compra.</p>"
+        "<p>Puedo mostrarte el catálogo, añadir o quitar productos, aplicar cupones "
+        "y ayudarte a finalizar el pedido.</p>"
+    )
+    return state
+
+
+def handle_greeting(state: ConversationState) -> ConversationState:
+    state["bot_message"] = (
+        "<p>¡Hola! Soy tu asistente de compras.</p>"
+        "<p>Puedo mostrarte el catálogo, añadir artículos al carrito, aplicar cupones "
+        "y ayudarte a finalizar la compra.</p>"
+        "<p>Por ejemplo, puedes decirme <em>'muestra el catálogo'</em> o "
+        "<em>'añade 2 camisetas azules'</em>.</p>"
+    )
+    return state
+
+
+def handle_help(state: ConversationState) -> ConversationState:
+    state["bot_message"] = (
+        "<p>Puedo ayudarte con estas cosas:</p>"
+        "<ul>"
+        "<li><strong>Ver catálogo:</strong> "
+        "<em>'muestra el catálogo'</em>, <em>'qué productos tenéis'</em></li>"
+        "<li><strong>Añadir producto:</strong> "
+        "<em>'añade 2 camisetas azules'</em>, <em>'pon 1 producto 101'</em></li>"
+        "<li><strong>Quitar producto:</strong> "
+        "<em>'quita la camiseta azul'</em>, <em>'elimina producto 101'</em></li>"
+        "<li><strong>Ver carrito:</strong> "
+        "<em>'qué llevo en el carrito'</em>, <em>'mostrar carrito'</em></li>"
+        "<li><strong>Cambiar cantidades:</strong> "
+        "<em>'cambia la camiseta azul a 3'</em>, <em>'pon 2 en lugar de 1'</em></li>"
+        "<li><strong>Aplicar cupón:</strong> "
+        "<em>'aplica el cupón BIENVENIDA10'</em></li>"
+        "<li><strong>Finalizar compra:</strong> "
+        "<em>'quiero finalizar la compra'</em></li>"
+        "<li><strong>Salir:</strong> <em>'salir'</em>, <em>'terminar'</em></li>"
+        "</ul>"
+    )
+    return state
+
+
+def handle_unknown(state: ConversationState) -> ConversationState:
+    state["bot_message"] = (
+        "<p>No he entendido bien tu petición.</p>"
+        "<p>Puedes pedirme que te muestre el catálogo, que añada o quite productos, "
+        "que cambie cantidades en tu carrito o que te muestre el total.</p>"
+        "<p>Si necesitas más detalles, puedes escribir <strong>'ayuda'</strong>.</p>"
+    )
+    return state
+
+def handle_exit(state: ConversationState) -> ConversationState:
+    # Mensaje final "de Cierre"
+    state["bot_message"] = (
+        "<p><strong>Pedido Finalizado.</strong> ¡Gracias por tu Compra!</p>"
+        "<p>Se ha vaciado el carrito y cerrado su sesión</p>"
+        "<p>Si quieres empezar una nueva compra, escribe <em>'Hola'</em> o <em>'Muestra el catálogo'</em></p>"
+    )
+    # Limpieza de estado (carrito y datos)
+    state["cart"].clear()
+    state["applied_coupon_code"] = None
+    state["shipping_name"] = None
+    state["shipping_city"] = None
+    state["mode"] = "catalog"
+
+    return state
+
+
+def build_graph():
+    graph = StateGraph(ConversationState)
+
+    graph.add_node("router", router_node)
+    graph.add_node("catalog", handle_catalog)
+    graph.add_node("add_to_cart", handle_add_to_cart)
+    graph.add_node("remove_from_cart", handle_remove_from_cart)
+    graph.add_node("update_quantity", handle_update_quantity)
+    graph.add_node("show_cart", handle_show_cart)
+    graph.add_node("checkout", handle_checkout)
+    graph.add_node("shipping", handle_shipping)
+    graph.add_node("apply_coupon", handle_apply_coupon)
+    graph.add_node("smalltalk", handle_smalltalk)
+    graph.add_node("greeting", handle_greeting)
+    graph.add_node("help", handle_help)
+    graph.add_node("unknown", handle_unknown)
+    graph.add_node("exit", handle_exit)
+
+    graph.set_entry_point("router")
+
+    def route_decision(state: ConversationState) -> str:
+        # Si estamos en modo envío, siempre procesamos con shipping,
+        # independientemente de la intención detectada.
+        if state["mode"] == "shipping":
+            return "shipping"
+
+        parsed = parse_user_message(state["last_user_message"])
+        intent = parsed.intent
+
+        if intent == "show_catalog":
+            return "catalog"
+        if intent == "add_to_cart":
+            return "add_to_cart"
+        if intent == "remove_from_cart":
+            return "remove_from_cart"
+        if intent == "update_quantity":
+            return "update_quantity"
+        if intent == "show_cart":
+            return "show_cart"
+        if intent == "checkout":
+            return "checkout"
+        if intent == "apply_coupon":
+            return "apply_coupon"
+        if intent == "smalltalk":
+            return "smalltalk"
+        if intent == "greeting":
+            return "greeting"
+        if intent == "help":
+            return "help"
+        if intent == "exit":
+            return "exit"
+        return "unknown"
+
+    graph.add_conditional_edges(
+        "router",
+        route_decision,
+        {
+            "catalog": "catalog",
+            "add_to_cart": "add_to_cart",
+            "remove_from_cart": "remove_from_cart",
+            "update_quantity": "update_quantity",
+            "show_cart": "show_cart",
+            "checkout": "checkout",
+            "apply_coupon": "apply_coupon",
+            "smalltalk": "smalltalk",
+            "greeting": "greeting",
+            "help": "help",
+            "shipping": "shipping",
+            "exit": "exit",
+            "unknown": "unknown",
+            END: END,
+        },
+    )
+
+    graph.add_edge("exit", END)
+
+    return graph.compile()

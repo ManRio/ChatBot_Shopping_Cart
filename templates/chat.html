@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="chat-container">
+  <div class="chat-window">
+    {% for speaker, text in chat_history %}
+  <div class="message {{ 'assistant' if speaker == 'bot' else 'user' }}">
+    <strong>{{ 'Asistente' if speaker == 'bot' else 'Usuario' }}:</strong>
+
+    {% if speaker == 'bot' %}
+      <div class="assistant-message-content">
+        {{ text | safe }}
+      </div>
+    {% else %}
+      <p>{{ text | e }}</p>
+    {% endif %}
+  </div>
+    {% endfor %}
+  </div>
+
+  <form method="post" class="chat-form">
+    <input type="text" name="message" placeholder="Escribe tu mensaje..." autofocus>
+    <button type="submit">Enviar</button>
+  </form>
+
+  <section class="cart-summary">
+    <h2>Carrito</h2>
+    {% if cart.items %}
+      <ul>
+        {% for item in cart.items.values() %}
+          <li>
+            {{ item.product.name }} x{{ item.quantity }}
+            ({{ '%.2f'|format(item.product.price * item.quantity) }} €)
+          </li>
+        {% endfor %}
+      </ul>
+      {% if discount_summary %}
+        <p>Descuento por cantidades: -{{ '%.2f'|format(discount_summary.line_discounts) }} €</p>
+        <p>Descuento por total: -{{ '%.2f'|format(discount_summary.cart_discount) }} €</p>
+        {% if applied_coupon %}
+          <p>Cupón {{ applied_coupon.code }}: -{{ '%.2f'|format(discount_summary.coupon_discount) }} €</p>
+        {% endif %}
+        <p><strong>Total final: {{ '%.2f'|format(discount_summary.final_total) }} €</strong></p>
+      {% endif %}
+    {% else %}
+      <p>Tu carrito está vacío.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,86 @@
+[
+  {
+    "id": 101,
+    "name": "Camiseta azul",
+    "price": 15.99,
+    "category": "Ropa",
+    "description": "Camiseta básica de algodón azul unisex."
+  },
+  {
+    "id": 102,
+    "name": "Camiseta roja",
+    "price": 15.99,
+    "category": "Ropa",
+    "description": "Camiseta básica de algodón roja unisex."
+  },
+  {
+    "id": 103,
+    "name": "Sudadera negra",
+    "price": 29.9,
+    "category": "Ropa",
+    "description": "Sudadera con capucha color negro."
+  },
+  {
+    "id": 201,
+    "name": "Pantalón vaquero",
+    "price": 39.9,
+    "category": "Ropa",
+    "description": "Pantalón vaquero slim fit."
+  },
+  {
+    "id": 202,
+    "name": "Chaqueta ligera",
+    "price": 45.5,
+    "category": "Ropa",
+    "description": "Chaqueta ligera ideal para entretiempo."
+  },
+  {
+    "id": 301,
+    "name": "Zapatillas deportivas",
+    "price": 59.99,
+    "category": "Calzado",
+    "description": "Zapatillas deportivas de entrenamiento."
+  },
+  {
+    "id": 302,
+    "name": "Botas trekking",
+    "price": 89.9,
+    "category": "Calzado",
+    "description": "Botas para senderismo resistentes al agua."
+  },
+  {
+    "id": 401,
+    "name": "Mochila urbana",
+    "price": 24.99,
+    "category": "Accesorios",
+    "description": "Mochila ligera con múltiples bolsillos."
+  },
+  {
+    "id": 402,
+    "name": "Gorra negra",
+    "price": 9.99,
+    "category": "Accesorios",
+    "description": "Gorra negra ajustable."
+  },
+  {
+    "id": 403,
+    "name": "Bufanda gris",
+    "price": 12.5,
+    "category": "Accesorios",
+    "description": "Bufanda clásica de lana gris."
+  },
+  {
+    "id": 501,
+    "name": "Reloj digital",
+    "price": 49.99,
+    "category": "Electrónica",
+    "description": "Reloj digital resistente al agua."
+  },
+  {
+    "id": 502,
+    "name": "Auriculares inalámbricos",
+    "price": 29.99,
+    "category": "Electrónica",
+    "description": "Auriculares Bluetooth con cancelación pasiva."
+  }
+]

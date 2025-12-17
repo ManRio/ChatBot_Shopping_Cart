@@ -1,0 +1,102 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  background-color: #f5f5f5;
+}
+
+header {
+  background-color: #333;
+  color: #fff;
+  padding: 1rem;
+}
+
+main {
+  padding: 1rem;
+}
+
+.chat-container {
+  display: flex;
+  gap: 1rem;
+}
+
+.chat-window {
+  flex: 2;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  padding: 1rem;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.chat-form {
+  margin-top: 0.5rem;
+}
+
+.chat-form input[type='text'] {
+  width: 70%;
+  padding: 0.5rem;
+}
+
+.chat-form button {
+  padding: 0.5rem 1rem;
+}
+
+.message {
+  margin-bottom: 0.5rem;
+}
+
+.message.assistant {
+  background-color: #eef;
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+}
+
+.message.user {
+  background-color: #efe;
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+}
+
+.cart-summary {
+  flex: 1;
+  background-color: #fff;
+  border: 1px solid #ddd;
+  padding: 1rem;
+}
+
+.catalog-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+}
+
+.catalog-table th,
+.catalog-table td {
+  border: 1px solid #ddd;
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+}
+
+.catalog-table th {
+  background-color: #f0f0f0;
+}
+.cart-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+}
+
+.cart-table th,
+.cart-table td {
+  border: 1px solid #ddd;
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+}
+
+.cart-table th {
+  background-color: #f0f0f0;
+}
+
+.cart-totals p {
+  margin: 0.2rem 0;
+}
