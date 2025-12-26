@@ -254,66 +254,135 @@ def handle_checkout(state: ConversationState) -> ConversationState:
     state["shipping_city"] = None
     return state
 
+def _is_valid_human_field(value: str) -> bool:
+    v = (value or "").strip()
+    return len(v) >= 2 and not v.isdigit()
+    # Comprobamos que tenga al menos 2 caracteres y no sea solo dígitos.
+
+def _try_parse_name_city(text: str) -> tuple[str | None, str | None]:
+    """
+    Extrae (nombre, ciudad) de frases tipo:
+      - "Soy Manuel de Sevilla"
+      - "Me llamo Manuel de Sevilla"
+      - "Soy Manuel y vivo en Sevilla"
+      - "Manuel de Sevilla" (fallback)
+    """
+    t = text.strip()
+
+    patterns = [
+        r"^(?:soy|me llamo)\s+(.+?)\s*(?:,)?\s+de\s+(.+)$",
+        r"^(?:soy|me llamo)\s+(.+?)\s+y\s+vivo\s+en\s+(.+)$",
+        r"^(.+?)\s+de\s+(.+)$",
+    ]
+
+    for pat in patterns:
+        m = re.search(pat, t, re.IGNORECASE)
+        if m:
+            name = m.group(1).strip()
+            city = m.group(2).strip()
+            return name, city
+
+    return None, None
+
 
 def handle_shipping(state: ConversationState) -> ConversationState:
     text = state["last_user_message"].strip()
 
-    # Caso 1: todavía no tenemos ni nombre ni ciudad.
-    # Intentamos primero parsear "Soy X de Y" o "Me llamo X de Y".
-    if state["shipping_name"] is None and state["shipping_city"] is None:
-        m = re.match(r"(?i)\s*(soy|me llamo)\s+(.+?)\s+de\s+(.+)", text)
-        if m:
-            name = m.group(2).strip()
-            city = m.group(3).strip()
-
+    # 1) Intento: el usuario da nombre+ciudad en una sola frase
+    #    Solo tiene sentido si aún falta alguno de los dos datos.
+    if state["shipping_name"] is None or state["shipping_city"] is None:
+        name, city = _try_parse_name_city(text)
+        if name and city and _is_valid_human_field(name) and _is_valid_human_field(city):
             state["shipping_name"] = name
             state["shipping_city"] = city
             state["mode"] = "confirmation"
             state["bot_message"] = (
-                f"<p>Gracias, <strong>{name}</strong> de "
-                f"<strong>{city}</strong>.</p>"
-                "<p>He registrado tu pedido. Si quieres, puedes seguir comprando "
-                "o escribir <strong>'salir'</strong> para terminar.</p>"
+                f"Gracias, <strong>{state['shipping_name']}</strong> de <strong>{state['shipping_city']}</strong>."
+                "<br><br>"
+                "He registrado tu pedido. Si quieres, puedes seguir comprando o escribir <strong>'salir'</strong> para terminar."
             )
             return state
 
-        # Si no encaja con el patrón “Soy X de Y”, interpretamos que solo nos ha dado el nombre.
-        state["shipping_name"] = text
-        state["bot_message"] = "<p>Perfecto. ¿En qué ciudad vives?</p>"
+    # 2) Si no se pudo parsear, vamos por partes (nombre -> ciudad)
+    if state["shipping_name"] is None:
+        if not _is_valid_human_field(text):
+            state["bot_message"] = (
+                "Necesito un nombre válido (por ejemplo: <strong>Ana</strong>). ¿Cuál es tu nombre?"
+            )
+            return state
+
+        # Evitar guardar "soy X de Y" como nombre si el parser falló por algún motivo
+        cleaned = re.sub(r"^(?:soy|me llamo)\s+", "", text, flags=re.IGNORECASE).strip()
+        if " de " in cleaned.lower():
+            state["bot_message"] = (
+                "Puedo recogerlo en una sola frase (por ejemplo: <em>“Soy Ana de Madrid”</em>) "
+                "o por partes. Para hacerlo por partes, dime solo tu <strong>nombre</strong>."
+            )
+            return state
+
+        state["shipping_name"] = cleaned
+        state["bot_message"] = "Perfecto. ¿En qué <strong>ciudad</strong> vives?"
         return state
 
-    # Caso 2: ya tenemos nombre pero no ciudad → este mensaje lo tomamos como ciudad.
-    if state["shipping_name"] is not None and state["shipping_city"] is None:
+    if state["shipping_city"] is None:
+        if not _is_valid_human_field(text):
+            state["bot_message"] = (
+                "Necesito una ciudad válida (por ejemplo: <strong>Madrid</strong>). ¿En qué ciudad vives?"
+            )
+            return state
+
         state["shipping_city"] = text
         state["mode"] = "confirmation"
         state["bot_message"] = (
-            f"<p>Gracias, <strong>{state['shipping_name']}</strong> de "
-            f"<strong>{state['shipping_city']}</strong>.</p>"
-            "<p>He registrado tu pedido. Si quieres, puedes seguir comprando "
-            "o escribir <strong>'salir'</strong> para terminar.</p>"
+            f"Gracias, <strong>{state['shipping_name']}</strong> de <strong>{state['shipping_city']}</strong>."
+            "<br><br>"
+            "He registrado tu pedido. Si quieres, puedes seguir comprando o escribir <strong>'salir'</strong> para terminar."
         )
         return state
 
-    # Caso 3: ya tenemos nombre y ciudad; de momento no hacemos nada especial.
     return state
 
 
 def handle_apply_coupon(state: ConversationState) -> ConversationState:
     intent = parse_user_message(state["last_user_message"])
     if not intent.coupon_code:
-        state["bot_message"] = "<p>Dime el código de cupón que quieres aplicar.</p>"
+        state["bot_message"] = (
+            "<p>Indícame el <strong>código</strong> del cupón (por ejemplo: <code>VIP20</code>).</p>"
+        )
         return state
 
     coupon = find_coupon_by_code(state["coupons"], intent.coupon_code)
     if coupon is None:
-        state["bot_message"] = "<p>Ese cupón no es válido.</p>"
+        state["bot_message"] = (
+            "<p>Ese cupón no es válido. Si quieres, puedo mostrarte el catálogo o tu carrito.</p>"
+        )
         return state
 
+    # Subtotal actual para feedback
+    summary = calculate_totals(state["cart"])
+    current_total = summary.final_total
+
+    if current_total < coupon.min_total:
+        state["bot_message"] = (
+            f"<p>El cupón <strong>{coupon.code}</strong> requiere un mínimo de "
+            f"<strong>{coupon.min_total:.2f}€</strong>. Ahora tu total es "
+            f"<strong>{current_total:.2f}€</strong>.</p>"
+        )
+        return state
+
+    previous = state["cart"].applied_coupon.code if state["cart"].applied_coupon else None
     state["cart"].applied_coupon = coupon
     state["applied_coupon_code"] = coupon.code
-    state["bot_message"] = (
-        f"<p>He aplicado el cupón <strong>{coupon.code}</strong> a tu carrito.</p>"
-    )
+
+    if previous and previous.upper() != coupon.code.upper():
+        state["bot_message"] = (
+            f"<p>He aplicado el cupón <strong>{coupon.code}</strong> y he sustituido "
+            f"el cupón anterior (<strong>{previous}</strong>).</p>"
+        )
+    else:
+        state["bot_message"] = f"<p>He aplicado el cupón <strong>{coupon.code}</strong> a tu carrito.</p>"
+
+    state["mode"] = "cart_edit"
     return state
 
 
@@ -372,19 +441,16 @@ def handle_unknown(state: ConversationState) -> ConversationState:
     return state
 
 def handle_exit(state: ConversationState) -> ConversationState:
-    # Mensaje final "de Cierre"
-    state["bot_message"] = (
-        "<p><strong>Pedido Finalizado.</strong> ¡Gracias por tu Compra!</p>"
-        "<p>Se ha vaciado el carrito y cerrado su sesión</p>"
-        "<p>Si quieres empezar una nueva compra, escribe <em>'Hola'</em> o <em>'Muestra el catálogo'</em></p>"
-    )
-    # Limpieza de estado (carrito y datos)
     state["cart"].clear()
     state["applied_coupon_code"] = None
     state["shipping_name"] = None
     state["shipping_city"] = None
+    state["last_user_message"] = ""
     state["mode"] = "catalog"
-
+    state["bot_message"] = (
+        "<p><strong>Sesión finalizada.</strong> He vaciado tu carrito.</p>"
+        "<p>Gracias por tu visita.</p>"
+    )
     return state
 
 
@@ -412,6 +478,10 @@ def build_graph():
         # Si estamos en modo envío, siempre procesamos con shipping,
         # independientemente de la intención detectada.
         if state["mode"] == "shipping":
+            parsed = parse_user_message(state["last_user_message"])
+            #Con esto permitimos al usuario salir o pedir ayuda aunque esté en el flujo de shipping
+            if parsed.intent in ("exit", "help"):
+                return parsed.intent
             return "shipping"
 
         parsed = parse_user_message(state["last_user_message"])
