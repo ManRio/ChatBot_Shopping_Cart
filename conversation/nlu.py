@@ -33,53 +33,86 @@ class ParsedIntent:
 # Utilidades de parsing
 # -----------------------
 
-
 def normalize(text: str) -> str:
-    """
-    Minúsculas + quitar acentos para facilitar matching de palabras clave.
-    """
+    """Minúsculas + quitar acentos para facilitar matching."""
     text = text.lower().strip()
     text = unicodedata.normalize("NFD", text)
     text = "".join(ch for ch in text if unicodedata.category(ch) != "Mn")
     return text
 
 
-def extract_first_int(text: str) -> Optional[int]:
-    """
-    Devuelve el primer entero encontrado en el texto.
-    """
-    match = re.search(r"\d+", text)
-    if match:
-        return int(match.group(0))
-    return None
-
-
-def extract_last_int(text: str) -> Optional[int]:
-    """
-    Devuelve el último entero encontrado en el texto.
-    Útil para frases tipo 'pon 3 en lugar de 1' → 1 y 3 → usamos 3.
-    """
-    nums = re.findall(r"\d+", text)
-    if not nums:
-        return None
-    return int(nums[-1])
-
-
 def extract_product_id(text: str) -> Optional[int]:
     """
-    Busca patrones tipo 'producto 103', 'id 103', 'articulo 103', etc.
+    Busca patrones tipo:
+    - 'producto 103'
+    - 'id 103'
+    - 'artículo 103'
+    - 'producto nº 103'
+    - 'del 103'
     """
     m = re.search(
-        r"(producto|id|articulo|artículo)\s+(?:del\s+|de\s+)?(\d+)",
+        r"(producto|id|articulo|artículo)\s*(?:n[ºo]\s*)?(?:del\s+|de\s+)?(\d+)",
         text,
         re.IGNORECASE,
     )
     if m:
         return int(m.group(2))
-    # Otra variante, añadiendo solo el id
-    m2 = re.search(r"\bdel\s+(\d{3})\b", text)
+
+    m2 = re.search(r"\bdel\s+(\d+)\b", text, re.IGNORECASE)
     if m2:
         return int(m2.group(1))
+
+    return None
+
+
+def extract_quantity(text: str) -> Optional[int]:
+    """
+    Detecta cantidades típicas:
+    - '2 camisetas'
+    - 'x3'
+    - '3 unidades'
+    - 'añade 2 camisetas' (número en mitad del texto)
+    """
+    # '3 unidades', '3 uds'
+    m = re.search(r"\b(\d+)\s*(unidades?|uds?)\b", text, re.IGNORECASE)
+    if m:
+        return int(m.group(1))
+
+    # 'x3'
+    m = re.search(r"\bx\s*(\d+)\b", text, re.IGNORECASE)
+    if m:
+        return int(m.group(1))
+
+    # número al principio: '2 camisetas'
+    m = re.match(r"\s*(\d+)\b", text)
+    if m:
+        return int(m.group(1))
+
+    # fallback: primer número que aparezca en cualquier parte
+    m = re.search(r"\b(\d+)\b", text)
+    if m:
+        return int(m.group(1))
+
+    return None
+
+
+def pick_update_quantity(text: str, product_id: Optional[int]) -> Optional[int]:
+    """
+    Para update_quantity:
+    - si hay product_id y hay varios números, la cantidad NO debería ser el id.
+    - elegimos el último número distinto del product_id.
+    """
+    nums = [int(n) for n in re.findall(r"\d+", text)]
+    if not nums:
+        return None
+
+    if product_id is None:
+        return nums[-1]
+
+    # coge el último número que no sea el product_id
+    for n in reversed(nums):
+        if n != product_id:
+            return n
 
     return None
 
@@ -88,16 +121,12 @@ def extract_product_id(text: str) -> Optional[int]:
 # Parsing principal
 # -----------------------
 
-
 def parse_user_message(message: str) -> ParsedIntent:
     """
-    Regla simple basada en keywords + regex para mapear un texto
-    a una intención de alto nivel + parámetros.
+    Parser rule-based: keywords + regex.
     """
     raw = message
     text = normalize(message)
-
-    # --- Palabras clave / sinónimos por intención ---
 
     exit_keywords = ["salir", "terminar", "cerrar", "adios", "hasta luego"]
     cart_keywords = ["carrito", "carro", "cesta", "basket"]
@@ -164,7 +193,6 @@ def parse_user_message(message: str) -> ParsedIntent:
         "hola",
         "buenas",
         "buenos dias",
-        "buenos días",
         "buenas tardes",
         "buenas noches",
         "hey",
@@ -181,94 +209,79 @@ def parse_user_message(message: str) -> ParsedIntent:
         "ayudame",
     ]
 
-    # -------------------
-    # 1. SALIR
-    # -------------------
+    # 1) SALIR
     if any(k in text for k in exit_keywords):
         return ParsedIntent(intent="exit")
 
-    # -------------------
-    # 2. SALUDO
-    # -------------------
+    # 2) SALUDO
     if any(k in text for k in greeting_keywords):
         return ParsedIntent(intent="greeting")
 
-    # -------------------
-    # 3. AYUDA
-    # -------------------
+    # 3) AYUDA
     if any(k in text for k in help_keywords):
         return ParsedIntent(intent="help")
 
-    # -------------------
-    # 4. VER CARRITO
-    # -------------------
+    # 4) VER CARRITO
     if any(k in text for k in cart_keywords):
         return ParsedIntent(intent="show_cart")
 
-    # -------------------
-    # 5. APLICAR CUPÓN
-    # -------------------
+    # 5) CUPÓN
     if any(k in text for k in coupon_keywords):
-        m = re.search(r"(?:cupon|cup[oó]n|descuento|promo)\s+([a-zA-Z0-9_-]+)", raw, re.IGNORECASE)
+        m = re.search(
+            r"(?:cupon|cup[oó]n|descuento|promo)\s+([a-zA-Z0-9_-]+)",
+            raw,
+            re.IGNORECASE,
+        )
         code = m.group(1) if m else None
         return ParsedIntent(intent="apply_coupon", coupon_code=code)
 
-    # -------------------
-    # 6. FINALIZAR COMPRA
-    # -------------------
+    # 6) CHECKOUT
     if any(k in text for k in checkout_keywords):
         return ParsedIntent(intent="checkout")
 
-    # -------------------
-    # 7. ACTUALIZAR CANTIDAD (ANTES que añadir)
-    # -------------------
+    # 7) UPDATE (antes que add)
     if any(k in text for k in update_keywords):
-        new_qty = extract_last_int(text)
-        product_id = extract_product_id(raw)
+        pid = extract_product_id(raw)
+        qty = pick_update_quantity(text, pid)
         return ParsedIntent(
             intent="update_quantity",
-            quantity=new_qty,
-            product_id=product_id,
-            product_name=raw,
+            product_id=pid,
+            quantity=qty,
+            product_name=raw if pid is None else None,
         )
 
-    # -------------------
-    # 8. AÑADIR AL CARRITO
-    # -------------------
+    # 8) ADD
     if any(k in text for k in add_keywords):
-        qty = extract_first_int(text)
-        product_id = extract_product_id(raw)
+        pid = extract_product_id(raw)
+        qty = extract_quantity(text)
+
+        # Caso "pon el producto 402": qty detecta 402 pero es el id.
+        if pid is not None and qty == pid:
+            qty = None
+
         return ParsedIntent(
             intent="add_to_cart",
+            product_id=pid,
             quantity=qty,
-            product_id=product_id,
-            product_name=raw,
+            product_name=raw if pid is None else None,
         )
 
-    # -------------------
-    # 9. ELIMINAR DEL CARRITO
-    # -------------------
+    # 9) REMOVE
     if any(k in text for k in remove_keywords):
-        product_id = extract_product_id(raw)
+        pid = extract_product_id(raw)
         return ParsedIntent(
             intent="remove_from_cart",
-            product_id=product_id,
-            product_name=raw,
+            product_id=pid,
+            product_name=raw if pid is None else None,
         )
 
-    # -------------------
-    # 10. VER CATÁLOGO (DESPUÉS de add/update/remove)
-    # -------------------
+    # 10) CATÁLOGO
     if any(k in text for k in catalog_keywords):
         return ParsedIntent(intent="show_catalog")
 
-    # -------------------
-    # 11. SMALLTALK simple
-    # -------------------
+    # 11) SMALLTALK
     if "tiempo" in text or "clima" in text:
         return ParsedIntent(intent="smalltalk")
 
-    # -------------------
-    # 12. SIN MATCH CLARO
-    # -------------------
+    # 12) UNKNOWN
     return ParsedIntent(intent="unknown")
