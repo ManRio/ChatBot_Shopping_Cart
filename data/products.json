@@ -4,83 +4,95 @@
     "name": "Camiseta azul",
     "price": 15.99,
     "category": "Ropa",
-    "description": "Camiseta básica de algodón azul unisex."
+    "description": "Camiseta básica de algodón azul unisex.",
+    "image": "img/products/101.webp"
   },
   {
     "id": 102,
     "name": "Camiseta roja",
     "price": 15.99,
     "category": "Ropa",
-    "description": "Camiseta básica de algodón roja unisex."
+    "description": "Camiseta básica de algodón roja unisex.",
+    "image": "img/products/102.jpg"
   },
   {
     "id": 103,
     "name": "Sudadera negra",
     "price": 29.9,
     "category": "Ropa",
-    "description": "Sudadera con capucha color negro."
+    "description": "Sudadera con capucha color negro.",
+    "image": "img/products/103.jpg"
   },
   {
     "id": 201,
     "name": "Pantalón vaquero",
     "price": 39.9,
     "category": "Ropa",
-    "description": "Pantalón vaquero slim fit."
+    "description": "Pantalón vaquero slim fit.",
+    "image": "img/products/201.webp"
   },
   {
     "id": 202,
     "name": "Chaqueta ligera",
     "price": 45.5,
     "category": "Ropa",
-    "description": "Chaqueta ligera ideal para entretiempo."
+    "description": "Chaqueta ligera ideal para entretiempo.",
+    "image": "img/products/202.jpg"
   },
   {
     "id": 301,
     "name": "Zapatillas deportivas",
     "price": 59.99,
     "category": "Calzado",
-    "description": "Zapatillas deportivas de entrenamiento."
+    "description": "Zapatillas deportivas de entrenamiento.",
+    "image": "img/products/301.jpg"
   },
   {
     "id": 302,
     "name": "Botas trekking",
     "price": 89.9,
     "category": "Calzado",
-    "description": "Botas para senderismo resistentes al agua."
+    "description": "Botas para senderismo resistentes al agua.",
+    "image": "img/products/302.webp"
   },
   {
     "id": 401,
     "name": "Mochila urbana",
     "price": 24.99,
     "category": "Accesorios",
-    "description": "Mochila ligera con múltiples bolsillos."
+    "description": "Mochila ligera con múltiples bolsillos.",
+    "image": "img/products/401.jpg"
   },
   {
     "id": 402,
     "name": "Gorra negra",
     "price": 9.99,
     "category": "Accesorios",
-    "description": "Gorra negra ajustable."
+    "description": "Gorra negra ajustable.",
+    "image": "img/products/402.jpg"
   },
   {
     "id": 403,
     "name": "Bufanda gris",
     "price": 12.5,
     "category": "Accesorios",
-    "description": "Bufanda clásica de lana gris."
+    "description": "Bufanda clásica de lana gris.",
+    "image": "img/products/403.webp"
   },
   {
     "id": 501,
     "name": "Reloj digital",
     "price": 49.99,
     "category": "Electrónica",
-    "description": "Reloj digital resistente al agua."
+    "description": "Reloj digital resistente al agua.",
+    "image": "img/products/501.jpg"
   },
   {
     "id": 502,
     "name": "Auriculares inalámbricos",
     "price": 29.99,
     "category": "Electrónica",
-    "description": "Auriculares Bluetooth con cancelación pasiva."
+    "description": "Auriculares Bluetooth con cancelación pasiva.",
+    "image": "img/products/502.jpg"
   }
 ]

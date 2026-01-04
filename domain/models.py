@@ -8,6 +8,7 @@ class Product:
     price: float
     category: Optional[str] = None
     description: Optional[str] = None
+    image: Optional[str] = None
 
 @dataclass
 class CartItem:

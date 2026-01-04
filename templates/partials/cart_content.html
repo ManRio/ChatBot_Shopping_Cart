@@ -1,0 +1,35 @@
+{% if cart and cart.items %}
+        <table class="cart-table">
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>Cant.</th>
+              <th>Importe</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in cart.items.values() %}
+              <tr>
+                <td>{{ item.product.name }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ '%.2f'|format(item.product.price * item.quantity) }} €</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        {% if discount_summary %}
+          <div class="cart-totals">
+            <p>Descuento por cantidades: <strong>-{{ '%.2f'|format(discount_summary.line_discounts) }} €</strong></p>
+            <p>Descuento por total: <strong>-{{ '%.2f'|format(discount_summary.cart_discount) }} €</strong></p>
+
+            {% if cart.applied_coupon %}
+              <p>Cupón {{ cart.applied_coupon.code }}: <strong>-{{ '%.2f'|format(discount_summary.coupon_discount) }} €</strong></p>
+            {% endif %}
+
+            <p class="cart-total-final">Total final: <strong>{{ '%.2f'|format(discount_summary.final_total) }} €</strong></p>
+          </div>
+        {% endif %}
+      {% else %}
+        <p>Tu carrito está vacío.</p>
+      {% endif %}

@@ -6,11 +6,31 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
-  <header>
-    <h1>Chatbot carrito de la compra</h1>
+  <header class="site-header">
+    <h1 class="site-title">Chatbot carrito de la compra</h1>
+
+    <button
+      id="cart-button"
+      class="cart-button"
+      type="button"
+      aria-haspopup="dialog"
+      aria-controls="cart-modal"
+      aria-expanded="false"
+    >
+      Carrito
+      <span class="cart-badge">
+        {{ cart.items|length if cart and cart.items else 0 }}
+      </span>
+    </button>
   </header>
-  <main>
+
+  <main class="page">
     {% block content %}{% endblock %}
   </main>
+
+  {% include "partials/cart_modal.html" %}
+  {% include "partials/product_modal.html" %}
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

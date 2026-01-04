@@ -23,47 +23,43 @@ El objetivo principal del proyecto es demostrar la capacidad de:
 - **Flask** – interfaz web y gestión de sesión
 - **LangGraph** – modelado del flujo conversacional
 - **HTML / CSS** – interfaz visual
-- **Pytest** – tests automatizados
+- **Pytest** – tests automatizados (en desarrollo)
 
 ---
 
 ## Estructura del proyecto
 
-```text
 shopping_bot/
 ├── app/
-│   ├── flask_app.py
-│   └── __init__.py
-│
+│ ├── flask_app.py
+│ └── **init**.py
 ├── conversation/
-│   ├── graph.py
-│   ├── nlu.py
-│   ├── state.py
-│   └── __init__.py
-│
+│ ├── graph.py
+│ ├── nlu.py
+│ ├── state.py
+│ └── **init**.py
 ├── domain/
-│   ├── models.py
-│   ├── catalog.py
-│   ├── coupons.py
-│   ├── pricing.py
-│   └── __init__.py
-│
+│ ├── models.py
+│ ├── catalog.py
+│ ├── coupons.py
+│ ├── pricing.py
+│ └── **init**.py
 ├── data/
-│   ├── products.json
-│   └── coupons.json
-│
+│ ├── products.json
+│ └── coupons.json
 ├── templates/
-│   ├── base.html
-│   └── chat.html
-│
+│ ├── partials/
+| │ ├── cart_content.html
+| │ ├── cart_modal.html
+| | └── product_modal.html
+│ ├── base.html
+│ └── chat.html
 ├── static/
-│   └── styles.css
-│
+│ ├──styles.css
+| └── app.js
 ├── tests/
-│
 ├── requirements.txt
 └── README.md
-```
 
 ---
 
@@ -101,92 +97,23 @@ Estados principales:
 ## Instalación y ejecución
 
 1. Crear entorno virtual (opcional):
-
-```bash
-python -m venv .venv
-```
+   python -m venv .venv
 
 2. Activar entorno:
-
-```bash
-source .venv/bin/activate
-```
-
-o en Windows:
-
-```bash
-.venv\Scripts\activate
-```
+   source .venv/bin/activate
+   o
+   .venv\Scripts\activate
 
 3. Instalar dependencias:
-
-```bash
-pip install -r requirements.txt
-```
+   pip install -r requirements.txt
 
 4. Ejecutar la aplicación:
+   python -m app.flask_app
 
-```bash
-python -m app.flask_app
-```
-
-La aplicación estará disponible en:
-
-```
-http://127.0.0.1:5000
-```
-
----
-
-## Tests automatizados
-
-El proyecto incluye una batería de **tests automatizados con pytest** que cubren las partes más relevantes de la lógica de negocio y del flujo conversacional.
-
-### Cobertura de los tests
-
-Los tests actuales validan, entre otros aspectos:
-
-- **Dominio**
-
-  - Operaciones del carrito (añadir, eliminar, modificar cantidades).
-  - Validación de cantidades inválidas.
-  - Limpieza del carrito al finalizar la sesión.
-
-- **Lógica de precios**
-
-  - Descuentos por cantidad.
-  - Descuento por importe total del carrito.
-  - Aplicación de cupones (porcentaje y valor fijo).
-  - Casos límite (cupones con mínimo, descuentos que no pueden dejar total negativo).
-
-- **NLU (parseo de intención)**
-
-  - Detección de intención principal.
-  - Extracción de identificadores de producto.
-  - Extracción de cantidades.
-  - Manejo de ambigüedades comunes en lenguaje natural.
-
-- **Flujo conversacional (LangGraph)**
-  - Enrutado correcto entre estados.
-  - Transiciones clave (catálogo, añadir al carrito, checkout, salida).
-  - Actualización del estado conversacional.
-
-### Ejecución de los tests
-
-Desde la raíz del proyecto:
-
-```bash
-pytest -q
-```
-
-En sistemas Windows, si es necesario:
-
-```bash
-python -m pytest -q
-```
+La aplicación estará disponible en http://127.0.0.1:5000
 
 ---
 
 ## Notas finales
 
-Este proyecto no pretende ser un sistema de producción, sino una **demostración de diseño, estructuración y razonamiento técnico** ante un problema real de conversación y gestión de estado.
+Este proyecto no pretende ser un sistema de producción, sino una demostración de diseño, estructuración y razonamiento técnico.

@@ -1,50 +1,103 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="chat-container">
-  <div class="chat-window">
-    {% for speaker, text in chat_history %}
-  <div class="message {{ 'assistant' if speaker == 'bot' else 'user' }}">
-    <strong>{{ 'Asistente' if speaker == 'bot' else 'Usuario' }}:</strong>
-
-    {% if speaker == 'bot' %}
-      <div class="assistant-message-content">
-        {{ text | safe }}
+<section class="product-grid">
+  {% for p in catalog %}
+    <article
+      class="product-card"
+      data-product-id="{{ p.id }}"
+      data-product-name="{{ p.name }}"
+      data-product-price="{{ '%.2f'|format(p.price) }} €"
+      data-product-desc="{{ p.description or '' }}"
+      data-product-img="{{ url_for('static', filename=(p.image if p.image else 'img/placeholder.png')) }}"
+    >
+      <div class="product-image">
+        <img
+          src="{{ url_for('static', filename=(p.image if p.image else 'img/placeholder.png')) }}"
+          alt="{{ p.name }}"
+          loading="lazy"
+        />
       </div>
-    {% else %}
-      <p>{{ text | e }}</p>
-    {% endif %}
-  </div>
+
+      <div class="product-body">
+        <h3 class="product-title">{{ p.name }}</h3>
+        <p class="product-price">{{ '%.2f'|format(p.price) }} €</p>
+
+        <div class="product-actions">
+          <button type="button" class="btn-secondary" data-open-product="{{ p.id }}">
+            Ver
+          </button>
+
+          <form
+            method="post"
+            action="{{ url_for('add_to_cart', product_id=p.id) }}"
+            class="inline-form"
+            data-ajax="add-to-cart"
+            data-product-id="{{ p.id }}"
+          >
+            <input type="hidden" name="quantity" value="1" />
+            <button type="submit" class="btn-primary">Añadir</button>
+          </form>
+
+          <small class="muted">ID: {{ p.id }}</small>
+        </div>
+      </div>
+    </article>
+  {% endfor %}
+</section>
+
+<!-- FAB chat -->
+<button
+  id="chat-fab"
+  class="chat-fab"
+  type="button"
+  aria-haspopup="dialog"
+  aria-controls="chat-widget"
+  aria-expanded="true"
+>
+  Chat
+</button>
+
+<section
+  id="chat-widget"
+  class="chat-widget"
+  role="dialog"
+  aria-label="Chat con el asistente"
+>
+  <header class="chat-widget-header">
+    <div class="chat-widget-title">Asistente</div>
+    <button
+      id="chat-close"
+      class="chat-widget-close"
+      type="button"
+      aria-label="Cerrar chat"
+    >
+      ×
+    </button>
+  </header>
+
+  <div id="chat-messages" class="chat-widget-messages">
+    {% for speaker, text in chat_history %}
+      <div class="message {{ 'assistant' if speaker == 'bot' else 'user' }}">
+        <strong>{{ 'Asistente' if speaker == 'bot' else 'Usuario' }}:</strong>
+
+        {% if speaker == 'bot' %}
+          <div class="assistant-message-content">{{ text | safe }}</div>
+        {% else %}
+          <p>{{ text | e }}</p>
+        {% endif %}
+      </div>
     {% endfor %}
   </div>
 
-  <form method="post" class="chat-form">
-    <input type="text" name="message" placeholder="Escribe tu mensaje..." autofocus>
+  <form method="post" class="chat-widget-form">
+    <input
+      type="text"
+      name="message"
+      placeholder="Escribe tu mensaje..."
+      autocomplete="off"
+    />
     <button type="submit">Enviar</button>
   </form>
-
-  <section class="cart-summary">
-    <h2>Carrito</h2>
-    {% if cart.items %}
-      <ul>
-        {% for item in cart.items.values() %}
-          <li>
-            {{ item.product.name }} x{{ item.quantity }}
-            ({{ '%.2f'|format(item.product.price * item.quantity) }} €)
-          </li>
-        {% endfor %}
-      </ul>
-      {% if discount_summary %}
-        <p>Descuento por cantidades: -{{ '%.2f'|format(discount_summary.line_discounts) }} €</p>
-        <p>Descuento por total: -{{ '%.2f'|format(discount_summary.cart_discount) }} €</p>
-        {% if applied_coupon %}
-          <p>Cupón {{ applied_coupon.code }}: -{{ '%.2f'|format(discount_summary.coupon_discount) }} €</p>
-        {% endif %}
-        <p><strong>Total final: {{ '%.2f'|format(discount_summary.final_total) }} €</strong></p>
-      {% endif %}
-    {% else %}
-      <p>Tu carrito está vacío.</p>
-    {% endif %}
-  </section>
-</div>
+</section>
 {% endblock %}

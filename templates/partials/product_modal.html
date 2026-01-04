@@ -1,0 +1,26 @@
+<div id="product-modal" class="modal is-hidden" role="dialog" aria-modal="true" aria-label="Producto">
+  <div class="modal-backdrop" data-close="true"></div>
+
+  <div class="modal-panel" id="product-panel">
+    <div class="modal-header">
+      <h2 id="product-modal-title">Producto</h2>
+      <button id="product-close" class="modal-close" type="button" aria-label="Cerrar">×</button>
+    </div>
+
+    <div class="modal-body">
+      <img id="product-modal-img" src="" alt="" class="product-modal-img">
+      <p class="product-modal-price">
+        <strong>Precio:</strong> <span id="product-modal-price"></span> €
+      </p>
+      <p id="product-modal-desc" class="product-modal-desc"></p>
+    </div>
+
+    <div class="modal-footer">
+      <form id="product-add-form" method="post">
+        <input type="hidden" name="quantity" value="1">
+        <button type="submit" class="btn-primary">Añadir al carrito</button>
+      </form>
+      <button type="button" class="btn-secondary" id="product-close-footer">Cerrar</button>
+    </div>
+  </div>
+</div>

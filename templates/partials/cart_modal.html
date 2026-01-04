@@ -1,0 +1,23 @@
+<div id="cart-modal" class="modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="cart-modal-title">
+  <div class="modal-backdrop" data-close="true"></div>
+
+  <div class="modal-panel" id="cart-panel">
+    <div class="modal-header">
+      <h2 id="cart-modal-title">Carrito</h2>
+      <button id="cart-close" class="modal-close" type="button" aria-label="Cerrar">×</button>
+    </div>
+
+    <div class="modal-body" id="cart-modal-body">
+      {% include "partials/cart_content.html" %}
+    </div>
+
+    <div class="modal-footer">
+      {% if cart and cart.items %}
+        <form method="post" action="{{ url_for('clear_cart') }}">
+          <button type="submit" class="btn-danger">Vaciar carrito</button>
+        </form>
+      {% endif %}
+      <button type="button" class="btn-secondary" id="cart-close-footer">Cerrar</button>
+    </div>
+  </div>
+</div>
