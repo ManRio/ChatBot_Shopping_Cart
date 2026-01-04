@@ -122,6 +122,4 @@ La aplicación estará disponible en http://127.0.0.1:5000
 
 Este proyecto no pretende ser un sistema de producción, sino una demostración de diseño, estructuración y razonamiento técnico.
 
-```
-
-```
+---
