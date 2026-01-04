@@ -23,43 +23,47 @@ El objetivo principal del proyecto es demostrar la capacidad de:
 - **Flask** – interfaz web y gestión de sesión
 - **LangGraph** – modelado del flujo conversacional
 - **HTML / CSS** – interfaz visual
-- **Pytest** – tests automatizados (en desarrollo)
+- **JavaScript** - Dinamismo y llamadas AJAX
+- **Pytest** – tests automatizados
 
 ---
 
 ## Estructura del proyecto
 
+````bash
 shopping_bot/
 ├── app/
-│ ├── flask_app.py
-│ └── **init**.py
+│ ├── **init**.py
+│ └── flask_app.py
 ├── conversation/
+│ ├── **init**.py
 │ ├── graph.py
 │ ├── nlu.py
-│ ├── state.py
-│ └── **init**.py
+│ └── state.py
+├── data/
+│ ├── coupons.json
+│ └── products.json
 ├── domain/
-│ ├── models.py
+│ ├── **init**.py
 │ ├── catalog.py
 │ ├── coupons.py
-│ ├── pricing.py
-│ └── **init**.py
-├── data/
-│ ├── products.json
-│ └── coupons.json
-├── templates/
-│ ├── partials/
-| │ ├── cart_content.html
-| │ ├── cart_modal.html
-| | └── product_modal.html
-│ ├── base.html
-│ └── chat.html
+│ ├── models.py
+│ └── pricing.py
 ├── static/
-│ ├──styles.css
-| └── app.js
+│ ├── app.js
+│ ├── styles.css
+│ └── img/
+├── templates/
+│ ├── base.html
+│ ├── chat.html
+│ └── partials/
+│ ├── cart_content.html
+│ ├── cart_modal.html
+│ └── product_modal.html
 ├── tests/
 ├── requirements.txt
 └── README.md
+```bash
 
 ---
 
@@ -117,3 +121,4 @@ La aplicación estará disponible en http://127.0.0.1:5000
 ## Notas finales
 
 Este proyecto no pretende ser un sistema de producción, sino una demostración de diseño, estructuración y razonamiento técnico.
+````
