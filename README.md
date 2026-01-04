@@ -30,40 +30,40 @@ El objetivo principal del proyecto es demostrar la capacidad de:
 
 ## Estructura del proyecto
 
-````bash
+```text
 shopping_bot/
 ├── app/
-│ ├── **init**.py
-│ └── flask_app.py
+│   ├── __init__.py
+│   └── flask_app.py
 ├── conversation/
-│ ├── **init**.py
-│ ├── graph.py
-│ ├── nlu.py
-│ └── state.py
+│   ├── __init__.py
+│   ├── graph.py
+│   ├── nlu.py
+│   └── state.py
 ├── data/
-│ ├── coupons.json
-│ └── products.json
+│   ├── coupons.json
+│   └── products.json
 ├── domain/
-│ ├── **init**.py
-│ ├── catalog.py
-│ ├── coupons.py
-│ ├── models.py
-│ └── pricing.py
+│   ├── __init__.py
+│   ├── catalog.py
+│   ├── coupons.py
+│   ├── models.py
+│   └── pricing.py
 ├── static/
-│ ├── app.js
-│ ├── styles.css
-│ └── img/
+│   ├── app.js
+│   ├── styles.css
+│   └── img/
 ├── templates/
-│ ├── base.html
-│ ├── chat.html
-│ └── partials/
-│ ├── cart_content.html
-│ ├── cart_modal.html
-│ └── product_modal.html
+│   ├── base.html
+│   ├── chat.html
+│   └── partials/
+│       ├── cart_content.html
+│       ├── cart_modal.html
+│       └── product_modal.html
 ├── tests/
 ├── requirements.txt
 └── README.md
-```bash
+```
 
 ---
 
@@ -121,4 +121,7 @@ La aplicación estará disponible en http://127.0.0.1:5000
 ## Notas finales
 
 Este proyecto no pretende ser un sistema de producción, sino una demostración de diseño, estructuración y razonamiento técnico.
-````
+
+```
+
+```
