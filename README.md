@@ -133,20 +133,30 @@ Estados principales:
 Usuario: ¿Qué productos tenéis?
 Bot: [muestra catálogo]
 
-Usuario: Añade 2 camisetas azules
-Bot: He añadido 2 camisetas azules a tu carrito.
+Usuario: Añade 2 unidades del producto 101
+Bot: He añadido 2 unidad(es) de Camiseta azul a tu carrito.
 
-Usuario: Pon 3 en lugar de 2
-Bot: He actualizado la cantidad a 3 unidades.
+Usuario: Cambia la cantidad del producto 101 a 3 unidades
+Bot: He actualizado la cantidad de Camiseta azul a 3 unidad(es).
+
+Usuario: Añade 1 unidad del producto 302.
+Bot: He añadido 1 unidad(es) de Botas trekking a tu carrito.
 
 Usuario: Aplica el cupón VIP20
 Bot: He aplicado el cupón VIP20 a tu carrito.
 
 Usuario: Quiero finalizar la compra
-Bot: El total es 47,20 €. ¿Cuál es tu nombre y ciudad?
+Bot: Vamos a finalizar tu compra. El total es 96.39 €. Puedes decirme tu nombre y ciudad de envío en una sola frase, por ejemplo: 'Soy Ana de Madrid', o bien decírmelo por partes empezando por tu nombre.
 
 Usuario: Soy Ana de Madrid
-Bot: Pedido registrado correctamente.
+Bot: Pedido registrado correctamente. Envío a nombre de Ana en Madrid.
+Total pagado: 96.39 €.
+Puedes seguir comprando (pídeme el catálogo) o escribir 'salir' para terminar.
+
+Usuario: Salir.
+Bot: Sesión finalizada. He vaciado tu carrito.
+Gracias por tu visita.
+
 ```
 
 ---
