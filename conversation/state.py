@@ -3,7 +3,7 @@ from domain.models import Cart, Product, Coupon, DiscountSummary
 
 ConversationMode = Literal["catalog", "cart_edit", "confirmation", "shipping", "end"]
 
-class ConversationState(TypedDict):
+class ConversationState(TypedDict, total=False):
     mode: ConversationMode
     cart: Cart
     catalog: list[Product]
@@ -14,4 +14,9 @@ class ConversationState(TypedDict):
     shipping_city: Optional[str]
     bot_message: str
     discount_summary: Optional[DiscountSummary]
-    chat_history: list[tuple[str, str]] 
+    chat_history: list[tuple[str, str]]
+
+    last_order_name: Optional[str]
+    last_order_city: Optional[str]
+    last_order_total: Optional[float]
+    order_confirmed: bool

@@ -47,6 +47,10 @@ def get_state() -> ConversationState:
             "last_user_message": "",
             "shipping_name": None,
             "shipping_city": None,
+            "last_order_name": None,
+            "last_order_city": None,
+            "last_order_total": None,
+            "order_confirmed": False,
             "bot_message": "¡Hola! Bienvenido a nuestra tienda. Soy tu asistente de compras. Preguntame por nuestro catálogo o dime que porductos quieres que añada a tu carrito.",
             "discount_summary": None,
             "chat_history": [

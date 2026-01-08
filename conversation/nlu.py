@@ -99,17 +99,26 @@ def extract_quantity(text: str) -> Optional[int]:
 def pick_update_quantity(text: str, product_id: Optional[int]) -> Optional[int]:
     """
     Para update_quantity:
-    - si hay product_id y hay varios números, la cantidad NO debería ser el id.
-    - elegimos el último número distinto del product_id.
+    - Caso especial: "pon 3 en lugar de 1 ..." => la cantidad nueva es el PRIMER número (3).
+    - Resto: elegimos el último número que no sea el product_id.
     """
     nums = [int(n) for n in re.findall(r"\d+", text)]
     if not nums:
         return None
 
+    # Caso "en lugar de" / "en vez de" => primer número = cantidad NUEVA
+    if re.search(r"\ben\s+(lugar|vez)\s+de\b", text):
+        if product_id is None:
+            return nums[0]
+        for n in nums:
+            if n != product_id:
+                return n
+        return None
+
+    # Caso normal: último número distinto del id
     if product_id is None:
         return nums[-1]
 
-    # coge el último número que no sea el product_id
     for n in reversed(nums):
         if n != product_id:
             return n
@@ -249,6 +258,18 @@ def parse_user_message(message: str) -> ParsedIntent:
             quantity=qty,
             product_name=raw if pid is None else None,
         )
+    
+    # 7.5) Caso especial: "pon X en lugar de Y ..." => update_quantity
+    # (aunque "pon" sea keyword de add, aquí prima el patrón de actualización)
+    if re.search(r"\ben\s+(lugar|vez)\s+de\b", text) and ("pon" in text):
+        pid = extract_product_id(raw)
+        qty = pick_update_quantity(text, pid)
+        return ParsedIntent(
+            intent="update_quantity",
+            product_id=pid,
+            quantity=qty,
+            product_name=raw if pid is None else None,
+    )
 
     # 8) ADD
     if any(k in text for k in add_keywords):

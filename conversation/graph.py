@@ -296,11 +296,6 @@ def handle_shipping(state: ConversationState) -> ConversationState:
             state["shipping_name"] = name
             state["shipping_city"] = city
             state["mode"] = "confirmation"
-            state["bot_message"] = (
-                f"Gracias, <strong>{state['shipping_name']}</strong> de <strong>{state['shipping_city']}</strong>."
-                "<br><br>"
-                "He registrado tu pedido. Si quieres, puedes seguir comprando o escribir <strong>'salir'</strong> para terminar."
-            )
             return state
 
     # 2) Si no se pudo parsear, vamos por partes (nombre -> ciudad)
@@ -333,11 +328,6 @@ def handle_shipping(state: ConversationState) -> ConversationState:
 
         state["shipping_city"] = text
         state["mode"] = "confirmation"
-        state["bot_message"] = (
-            f"Gracias, <strong>{state['shipping_name']}</strong> de <strong>{state['shipping_city']}</strong>."
-            "<br><br>"
-            "He registrado tu pedido. Si quieres, puedes seguir comprando o escribir <strong>'salir'</strong> para terminar."
-        )
         return state
 
     return state
@@ -440,6 +430,55 @@ def handle_unknown(state: ConversationState) -> ConversationState:
     )
     return state
 
+def handle_confirmation(state: ConversationState) -> ConversationState:
+    """
+    - Al entrar por primera vez, “cierra” el pedido:
+      guarda resumen del último pedido, vacía carrito y deja mensaje final.
+    - En siguientes mensajes, no vuelve a cerrar nada; solo guía al usuario.
+    """
+    # Si aún no se ha “confirmado” formalmente el pedido, lo hacemos ahora
+    if not state.get("order_confirmed", False):
+        # Capturar totales antes de vaciar
+        summary = calculate_totals(state["cart"]) if not state["cart"].is_empty() else None
+        total = summary.final_total if summary else 0.0
+
+        name = state.get("shipping_name") or "cliente"
+        city = state.get("shipping_city") or "tu ciudad"
+
+        state["last_order_name"] = name
+        state["last_order_city"] = city
+        state["last_order_total"] = total
+        state["order_confirmed"] = True
+
+        # Vaciar carrito + cupón (pedido ya “registrado”)
+        state["cart"].clear()
+        state["applied_coupon_code"] = None
+        state["discount_summary"] = None
+
+        state["bot_message"] = (
+            "<p><strong>Pedido registrado correctamente.</strong></p>"
+            f"<p>Envío a nombre de <strong>{name}</strong> en <strong>{city}</strong>.</p>"
+            f"<p>Total pagado: <strong>{total:.2f} €</strong>.</p>"
+            "<p>Puedes seguir comprando (pídeme el <strong>catálogo</strong>) o escribir <strong>'salir'</strong> para terminar.</p>"
+        )
+        state["mode"] = "confirmation"
+        return state
+
+    # Si ya estaba confirmado, no rehacemos nada:
+    name = state.get("last_order_name") or "cliente"
+    city = state.get("last_order_city") or "tu ciudad"
+    total = state.get("last_order_total")
+
+    total_txt = f"<p>Total del último pedido: <strong>{total:.2f} €</strong>.</p>" if total is not None else ""
+    state["bot_message"] = (
+        "<p>Tu pedido ya está confirmado.</p>"
+        f"<p>Último envío: <strong>{name}</strong> en <strong>{city}</strong>.</p>"
+        f"{total_txt}"
+        "<p>Si quieres, puedo mostrarte el <strong>catálogo</strong> para seguir comprando o puedes escribir <strong>'salir'</strong>.</p>"
+    )
+    state["mode"] = "confirmation"
+    return state
+
 def handle_exit(state: ConversationState) -> ConversationState:
     state["cart"].clear()
     state["applied_coupon_code"] = None
@@ -465,6 +504,7 @@ def build_graph():
     graph.add_node("show_cart", handle_show_cart)
     graph.add_node("checkout", handle_checkout)
     graph.add_node("shipping", handle_shipping)
+    graph.add_node("confirmation", handle_confirmation)
     graph.add_node("apply_coupon", handle_apply_coupon)
     graph.add_node("smalltalk", handle_smalltalk)
     graph.add_node("greeting", handle_greeting)
@@ -475,16 +515,26 @@ def build_graph():
     graph.set_entry_point("router")
 
     def route_decision(state: ConversationState) -> str:
-        # Si estamos en modo envío, siempre procesamos con shipping,
-        # independientemente de la intención detectada.
+        parsed = parse_user_message(state["last_user_message"])
+
+        # 1) SHIPPING: permitir exit/help incluso durante shipping
         if state["mode"] == "shipping":
-            parsed = parse_user_message(state["last_user_message"])
-            #Con esto permitimos al usuario salir o pedir ayuda aunque esté en el flujo de shipping
             if parsed.intent in ("exit", "help"):
                 return parsed.intent
             return "shipping"
 
-        parsed = parse_user_message(state["last_user_message"])
+        # 2) CONFIRMATION: permitir salir/ayuda/catálogo/carrito
+        if state["mode"] == "confirmation":
+            if parsed.intent in ("exit", "help", "show_catalog", "show_cart"):
+                return {
+                    "exit": "exit",
+                    "help": "help",
+                    "show_catalog": "catalog",
+                    "show_cart": "show_cart",
+                }[parsed.intent]
+            return "confirmation"
+
+        # 3) Ruteo normal por intención
         intent = parsed.intent
 
         if intent == "show_catalog":
@@ -509,6 +559,7 @@ def build_graph():
             return "help"
         if intent == "exit":
             return "exit"
+
         return "unknown"
 
     graph.add_conditional_edges(
@@ -526,6 +577,7 @@ def build_graph():
             "greeting": "greeting",
             "help": "help",
             "shipping": "shipping",
+            "confirmation": "confirmation",
             "exit": "exit",
             "unknown": "unknown",
             END: END,
